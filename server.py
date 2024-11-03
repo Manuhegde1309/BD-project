@@ -8,7 +8,7 @@ clients = []
 clients_lock = threading.Lock()
 running = True
 server_socket = None
-
+authenticated_users=set()
 def validate_credentials(username, password):
     """
     Validate user credentials against a credentials file
@@ -32,13 +32,20 @@ def handle_authentication(conn):
     """
     Handle client authentication
     """
+    global authenticated_users
     try:
         # Request username
         conn.send("USERNAME".encode('utf-8'))
         username = conn.recv(1024).decode('utf-8').strip()
         if not username:
             conn.send("Username cannot be empty".encode('utf-8'))
-            return False
+            return None
+        # Check if username is already authenticated
+        with clients_lock:
+            if username in authenticated_users:
+                conn.send("USER_ALREADY_LOGGED_IN".encode('utf-8'))
+                print(f"User {username} is already logged in")
+                return None
 
         # Request password
         conn.send("PASSWORD".encode('utf-8'))
@@ -46,20 +53,24 @@ def handle_authentication(conn):
         
         if not password:
             conn.send("Password cannot be empty".encode('utf-8'))
-            return False
+            return None
 
         # Validate credentials
         if validate_credentials(username, password):
             conn.send("AUTH_SUCCESS".encode('utf-8'))
             print(f"User {username} authenticated successfully")
-            return True
+            with clients_lock:
+                authenticated_users.add(username)
+            return username
+
+#            return True
         else:
             conn.send("AUTH_FAILED".encode('utf-8'))
             print(f"Authentication failed for {username}")
-            return False
+            return None
     except Exception as e:
         print(f"Authentication error: {e}")
-        return False
+        return None
 
 def broadcast_shutdown_message():
     """
@@ -77,8 +88,9 @@ def handle_client(conn, addr):
     """
     Handle individual client connections
     """
-    global running, clients
-    if not handle_authentication(conn):
+    global running, clients,authenticated_users
+    username = None
+    if not (username := handle_authentication(conn)):
         conn.close()
         return
     
@@ -100,6 +112,11 @@ def handle_client(conn, addr):
             if conn in clients:
                 clients.remove(conn)
         conn.close()
+                # Remove username from authenticated users
+        if username:
+            with clients_lock:
+                authenticated_users.discard(username)
+        
         print(f"Connection with {addr} closed\n")
         
 def accept_connections():
