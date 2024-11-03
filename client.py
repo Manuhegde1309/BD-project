@@ -24,6 +24,9 @@ def authenticate_client():
         
         # Get and send username
         username = input("Enter username: ")
+        if not username:
+            print("Username cannot be empty.")
+            return False
         client_socket.send(username.encode('utf-8'))
         
         # Wait for PASSWORD prompt
@@ -34,6 +37,9 @@ def authenticate_client():
         
         # Get and send password
         password = input("Enter password: ")
+        if not password:
+            print("Password cannot be empty.")
+            return False
         client_socket.send(password.encode('utf-8'))
         
         # Check authentication result
@@ -118,7 +124,7 @@ def start_client(host='0.0.0.0', port=12346):
     global client_socket, running
     auth_result = authenticate_client()
     if not auth_result:
-        print("Authentication failed. Exiting.")
+        #print("Authentication failed. Exiting.")
         sys.exit(1)
     try:
         # # Establish connection

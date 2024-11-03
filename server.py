@@ -36,11 +36,18 @@ def handle_authentication(conn):
         # Request username
         conn.send("USERNAME".encode('utf-8'))
         username = conn.recv(1024).decode('utf-8').strip()
-        
+        if not username:
+            conn.send("Username cannot be empty".encode('utf-8'))
+            return False
+
         # Request password
         conn.send("PASSWORD".encode('utf-8'))
         password = conn.recv(1024).decode('utf-8').strip()
         
+        if not password:
+            conn.send("Password cannot be empty".encode('utf-8'))
+            return False
+
         # Validate credentials
         if validate_credentials(username, password):
             conn.send("AUTH_SUCCESS".encode('utf-8'))
